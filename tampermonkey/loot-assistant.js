@@ -51,23 +51,30 @@ function page() {
     }
 
     const current_page = [...document.querySelectorAll(".paged-nav-item")]
-        .map(e => parseInt(e.textContent.trim(), 10))
+        .map(e => parseInt(e.textContent.replace(/\D/g, ""), 10))
         .find(e => !isNaN(e));
 
     return current_page == null ? 1 : current_page;
 }
 
 function next_page() {
-    let curr = page();
-    let nav = document.querySelector("#plunder_list_nav");
-    let pages = nav == null ? [] : [...nav.querySelector("td").children];
-    let next = pages.find(e => parseInt(e.textContent.trim(), 10) == curr + 1);
+    const curr = page();
+    const nav = document.querySelector("#plunder_list_nav");
+    const pages = nav == null ? [] : [...nav.querySelectorAll(".paged-nav-item")];
+    const next = pages.find(e => parseInt(e.textContent.replace(/\D/g, ""), 10) == curr + 1);
 
     if (next == null) {
         return null;
     }
 
-    run_action(() => next.click());
+    run_action(() => {
+        if (next.href == null || next.href == "") {
+            next.click();
+            return;
+        }
+
+        location.href = next.href;
+    });
     skipped_targets = new Set();
     return curr + 1;
 }
@@ -200,6 +207,12 @@ function move_to_first_page() {
     return true;
 }
 
+function return_to_first_page_or_reload(timeout) {
+    if (!move_to_first_page()) {
+        reload_after(timeout);
+    }
+}
+
 function reload_after(timeout) {
     const jittered_timeout = random_timeout(
         Math.max(0, timeout - CONFIG.reload_jitter_ms),
@@ -215,7 +228,7 @@ function reload_after(timeout) {
 
 function continue_after_page() {
     if (next_page() == null) {
-        reload_after(CONFIG.reload_time_ms / 3);
+        return_to_first_page_or_reload(CONFIG.reload_time_ms / 3);
         return;
     }
 
@@ -235,7 +248,7 @@ async function main() {
     console.log("SOURCE: " + source_village);
 
     if (lcs <= 0) {
-        reload_after(CONFIG.reload_time_ms);
+        return_to_first_page_or_reload(CONFIG.reload_time_ms);
         return;
     }
 
