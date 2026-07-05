@@ -13,7 +13,7 @@
 // ==/UserScript==
 
 const CONFIG = {
-    backend_url: "http://192.168.1.107:5080",
+    backend_url: "http://127.0.0.1:5080",
     time_between_attacks_ms: 20 * 60 * 1000,
     reload_time_ms: 3 * 60 * 1000,
     send_timeout_ms: 300,
