@@ -15,17 +15,24 @@
 const CONFIG = {
     backend_url: "http://127.0.0.1:5080",
     time_between_attacks_ms: 20 * 60 * 1000,
-    reload_time_ms: 3 * 60 * 1000,
+    min_empty_units_village_change_delay_ms: 1 * 60 * 1000,
+    max_empty_units_village_change_delay_ms: 2 * 60 * 1000,
     send_timeout_ms: 300,
     page_load_wait_ms: 1000,
     after_send_check_ms: 700,
-    reload_jitter_ms: 60 * 1000,
     max_actions_per_second: 5,
 };
 
 let last_action_at = 0;
+let empty_units_check_scheduled = false;
 let skipped_targets = new Set();
 let source_village = current_village();
+
+function altAldeia()
+{
+    $('.arrowRight').click();
+    $('.groupRight').click();
+}
 
 function lc_count() {
     const light = document.querySelector("#light");
@@ -195,6 +202,10 @@ async function register_attack(target) {
     }
 }
 
+function change_village() {
+    run_action(altAldeia);
+}
+
 function move_to_first_page() {
     const url = new URL(location.href);
     url.searchParams.set("Farm_page", "0");
@@ -207,28 +218,39 @@ function move_to_first_page() {
     return true;
 }
 
-function return_to_first_page_or_reload(timeout) {
-    if (!move_to_first_page()) {
-        reload_after(timeout);
+function change_village_if_units_still_empty() {
+    if (empty_units_check_scheduled) {
+        return;
     }
-}
 
-function reload_after(timeout) {
-    const jittered_timeout = random_timeout(
-        Math.max(0, timeout - CONFIG.reload_jitter_ms),
-        timeout + CONFIG.reload_jitter_ms
+    empty_units_check_scheduled = true;
+    const timeout = random_timeout(
+        CONFIG.min_empty_units_village_change_delay_ms,
+        CONFIG.max_empty_units_village_change_delay_ms
     );
 
+    console.log("[Loot Assistant] Units empty. Checking again before changing village in " + Math.round(timeout / 1000) + "s.");
+
     setTimeout(() => {
-        if (!move_to_first_page()) {
-            run_action(() => location.reload());
+        empty_units_check_scheduled = false;
+
+        if (lc_count() <= 0) {
+            change_village();
+            return;
         }
-    }, jittered_timeout);
+
+        setTimeout(main, CONFIG.send_timeout_ms);
+    }, timeout);
 }
 
 function continue_after_page() {
     if (next_page() == null) {
-        return_to_first_page_or_reload(CONFIG.reload_time_ms / 3);
+        skipped_targets = new Set();
+
+        if (!move_to_first_page()) {
+            setTimeout(main, CONFIG.page_load_wait_ms);
+        }
+
         return;
     }
 
@@ -248,7 +270,7 @@ async function main() {
     console.log("SOURCE: " + source_village);
 
     if (lcs <= 0) {
-        return_to_first_page_or_reload(CONFIG.reload_time_ms);
+        change_village_if_units_still_empty();
         return;
     }
 
