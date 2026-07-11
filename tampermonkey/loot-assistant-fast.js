@@ -8,15 +8,19 @@
 // @grant        GM_xmlhttpRequest
 // @connect      localhost
 // @connect      127.0.0.1
-// @connect      192.168.1.*
+// @connect      192.168.1.68
 // ==/UserScript==
 
 const CONFIG = {
     backend_url: "http://192.168.1.68:5080",
     ignored_villages: new Set([
-        "517|543",
+        // "517|543",
     ]),
-    time_between_attacks_ms: 20 * 60 * 1000,
+  //NAME                    | MM | SS | MS
+    time_between_attacks_ms : 20 * 60 * 1000,
+    attack_timeout_ms       :           300,
+    village_swap_timeout_ms :      30 * 1000,
+    page_swap_timeout_ms    :       3 * 1000,
 };
 
 function change_village() {
@@ -124,6 +128,7 @@ function backend_request({method, url, body}) {
         GM_xmlhttpRequest({
             method,
             url,
+            responseType: "text",
             headers: body == null ? {} : {"Content-Type": "application/json"},
             data: body == null ? undefined : JSON.stringify(body),
             onload: resolve,
@@ -186,6 +191,21 @@ async function can_attack(target) {
     return elapsed_ms > CONFIG.time_between_attacks_ms;
 }
 
+async function set_current_village(village) {
+    const update_url = current_village_url();
+    update_url.searchParams.set("village", village);
+    const update_response = await backend_request({
+        method: "POST",
+        url: update_url.toString(),
+    });
+
+    if (update_response.status < 200 || update_response.status >= 300) {
+        throw new Error("POST /state/current-village failed with status " + update_response.status);
+    }
+
+    return update_response;
+}
+
 async function main(params) {
     const source_village = current_village();
     const page = current_page();
@@ -198,21 +218,14 @@ async function main(params) {
             throw new Error("GET /state/current-village failed with status " + response.status);
         }
 
-        if (response.responseText.trim() != source_village) {
-            const update_response = await backend_request({
-                method: "POST",
-                url,
-                body: source_village,
-            });
-
-            if (update_response.status < 200 || update_response.status >= 300) {
-                throw new Error("POST /state/current-village failed with status " + update_response.status);
-            }
-
+        if ((response.responseText ?? "").trim() != source_village) {
+            await set_current_village(source_village);
+            await new Promise(resolve => setTimeout(resolve, CONFIG.page_swap_timeout_ms/2));
             move_to_first_page();
             return;
         }
     }
+    await set_current_village(source_village);
 
     const pl = plunder_list();
     const timings_url = new URL("/attack/timings", CONFIG.backend_url);
@@ -239,16 +252,16 @@ async function main(params) {
             continue;
         }
 
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, CONFIG.attack_timeout_ms));
         await register_attack(source_village, target);
         target.send_a();
     }
 
     if (lc_count() <= 0) {
-        await new Promise(resolve => setTimeout(resolve, 10000));
+        await new Promise(resolve => setTimeout(resolve, CONFIG.village_swap_timeout_ms));
         change_village();
     } else {
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, CONFIG.page_swap_timeout_ms));
         next_page();
     }
 }
