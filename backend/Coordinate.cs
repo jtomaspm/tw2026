@@ -1,3 +1,4 @@
+namespace backend;
 internal static class Coordinate
 {
     public static bool TryNormalize(string? value, out string coordinate)

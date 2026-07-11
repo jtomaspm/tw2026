@@ -8,12 +8,16 @@
 // @grant        GM_xmlhttpRequest
 // @connect      localhost
 // @connect      127.0.0.1
+// @connect      192.168.1.68
 // @connect      192.168.1.105
 // @connect      192.168.1.107
 // ==/UserScript==
 
 const CONFIG = {
-    backend_url: "http://127.0.0.1:5080",
+    backend_url: "http://192.168.1.68:5080",
+    ignored_villages: new Set([
+        "517|543",
+    ]),
     time_between_attacks_ms: 20 * 60 * 1000,
     min_empty_units_village_change_delay_ms: 1 * 60 * 1000,
     max_empty_units_village_change_delay_ms: 2 * 60 * 1000,
@@ -28,11 +32,12 @@ let empty_units_check_scheduled = false;
 let skipped_targets = new Set();
 let source_village = current_village();
 
-function altAldeia()
+function altVillage()
 {
     $('.arrowRight').click();
     $('.groupRight').click();
 }
+
 
 function lc_count() {
     const light = document.querySelector("#light");
@@ -40,14 +45,14 @@ function lc_count() {
 }
 
 function current_village() {
-    const village = document.querySelector("b.nowrap");
+    const village = document.querySelector("#menu_row2");
 
     if (village == null) {
         return null;
     }
 
-    const coordinate = village.textContent.trim().substring(1, 8);
-    return /^\d+\|\d+$/.test(coordinate) ? coordinate : null;
+    const match = village.textContent.match(/\b\d{3}\|\d{3}\b/);
+    return match == null ? null : match[0];
 }
 
 function page() {
@@ -203,7 +208,11 @@ async function register_attack(target) {
 }
 
 function change_village() {
-    run_action(altAldeia);
+    run_action(altVillage);
+}
+
+function current_village_is_ignored() {
+    return CONFIG.ignored_villages.has(source_village);
 }
 
 function move_to_first_page() {
@@ -260,6 +269,12 @@ function continue_after_page() {
 async function main() {
     if (source_village == null) {
         console.error("[Loot Assistant] Could not read current village coordinate.");
+        return;
+    }
+
+    if (current_village_is_ignored()) {
+        console.log("[Loot Assistant] Ignoring source village " + source_village + ". Changing village.");
+        change_village();
         return;
     }
 
