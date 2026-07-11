@@ -60,6 +60,7 @@ function next_page() {
     const next = pages.find(e => parseInt(e.textContent.replace(/\D/g, ""), 10) == curr + 1);
 
     if (next == null) {
+        change_village();
         return null;
     }
 
