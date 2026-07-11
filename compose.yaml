@@ -1,0 +1,10 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Containerfile
+    image: tw-backend:latest
+    container_name: tw-backend
+    ports:
+      - "5080:5080"
+    restart: unless-stopped
