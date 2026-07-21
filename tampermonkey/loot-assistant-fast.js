@@ -12,15 +12,19 @@
 // ==/UserScript==
 
 const CONFIG = {
-    backend_url: "http://192.168.1.68:5080",
+    backend_url: "http://localhost:5080",
     ignored_villages: new Set([
-        // "517|543",
+        //"517|543",
+        //"528|544",
+        //"527|545",
+        //"525|549",
+        //"515|546",
     ]),
   //NAME                    | MM | SS | MS
     time_between_attacks_ms : 20 * 60 * 1000,
-    attack_timeout_ms       :           300,
-    village_swap_timeout_ms :      30 * 1000,
-    page_swap_timeout_ms    :       3 * 1000,
+    attack_timeout_ms       :           250,
+    village_swap_timeout_ms :      15 * 1000,
+    page_swap_timeout_ms    :       2 * 1000,
 };
 
 function change_village() {
@@ -209,6 +213,14 @@ async function set_current_village(village) {
 
 async function main(params) {
     const source_village = current_village();
+
+    // Skip ignored villages
+    if (source_village && CONFIG.ignored_villages.has(source_village)) {
+        await new Promise(resolve => setTimeout(resolve, CONFIG.village_swap_timeout_ms));
+        change_village();
+        return;
+    }
+
     const page = current_page();
 
     if (page != 1) {

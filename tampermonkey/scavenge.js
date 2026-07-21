@@ -9,8 +9,8 @@
 // ==/UserScript==
 
 const CONFIG = {
-    min_village_change_delay_ms: 1 * 60 * 1000,
-    max_village_change_delay_ms: 2 * 60 * 1000,
+    min_village_change_delay_ms: 10 * 1000,
+    max_village_change_delay_ms: 60 * 1000,
     send_wait_ms: 1000,
     excluded_units: new Set(["axe", "light", "knight"]),
 };
